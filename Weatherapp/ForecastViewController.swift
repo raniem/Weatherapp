@@ -82,55 +82,22 @@ class ForecastViewController: UIViewController, UITableViewDelegate, UITableView
         })
     }
     
-    func fetchURLImage(url : String) {
-        let config = URLSessionConfiguration.default
-        
-        let session = URLSession(configuration: config)
-        
-        let url : URL? = URL(string: url)
-        
-        let task = session.dataTask(with: url!, completionHandler: doneFetchingImage);
-        
-        // Starts the task, spawns a new thread and calls the callback function
-        task.resume();
-    }
-    
-    func doneFetchingImage(data: Data?, response: URLResponse?, error: Error?) {
-        guard let image = data else {
-            // TODO: Show error dialog
-            print("Error fetching request!")
-            return
-        }
-        
-        // Execute stuff in UI thread
-        DispatchQueue.main.async(execute: {() in
-            self.weatherIconArray.append(UIImage(data: data!)!)
-            
-            if (self.weatherIconArray.count == self.weatherData.list.count) {
-                self.weatherIconArraySet = true
-                self.forecastTableView.reloadData()
-                
-                for index in 0...self.weatherData.list.count {
-                    self.fetchURLImage(url:
-                        "https://openweathermap.org/img/w/\(self.weatherData.list[index].weather[0].icon).png")
-                }
-            }
-        })
-    }
-    
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "forecastTableCell") as! ForecastTableCell
-        let weather = self.weatherData.list[indexPath.row].weather[0].main + "  " + String(self.weatherData.list[indexPath.row].main.temp) + " C"
+        let temperature = String(self.weatherData.list[indexPath.row].main.temp)
+        let weather = self.weatherData.list[indexPath.row].weather[0].main + "  " + temperature.dropLast() + " C"   // String.dropLast() removes the last number from the temperature
         cell.weatherTypeField.text = weather
-        cell.weatherDateField.text = self.weatherData.list[indexPath.row].dt_txt!
         
-        self.fetchURLImage(url:
-            "https://openweathermap.org/img/w/\(self.weatherData.list[indexPath.row].weather[0].icon).png")
+        // Replaces '-'-marks with '/' and removes the last two numbers (seconds)
+        let dt = String(self.weatherData.list[indexPath.row].dt_txt!.replacingOccurrences(of: "-", with: "/").split(separator: ":")[0] + ":" + self.weatherData.list[indexPath.row].dt_txt!.split(separator: ":")[1])
+        // It's beautiful, isn't it? ^
+        cell.weatherDateField.text = dt
+        
+        let url = URL(string: "https://openweathermap.org/img/w/\(self.weatherData.list[indexPath.row].weather[0].icon).png")
         
         DispatchQueue.main.async(execute: {() in
-            if (self.weatherIconArraySet) {
-                cell.weatherIcon.image = self.weatherIconArray[indexPath.row]
-            }
+            let data = NSData(contentsOf: url!)
+            cell.weatherIcon.image = UIImage(data: data! as Data)
         })
         
         return cell

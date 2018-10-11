@@ -7,21 +7,29 @@
 //
 
 import UIKit
+import CoreLocation
 
-class CurrenWeatherViewController: UIViewController {
+class CurrenWeatherViewController: UIViewController, CLLocationManagerDelegate {
 
     @IBOutlet weak var weatherImage: UIImageView!
     @IBOutlet weak var tempLabel: UILabel!
     @IBOutlet weak var cityLabel: UILabel!
     
-    var currentWeatherObject: WeatherObject?
+    let locationManager = CLLocationManager()
+    let uD = UserDefaults.standard
     
     var alert : UIAlertController? = nil
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        alert = UIAlertController(title: "Not a valid city name!", message: nil, preferredStyle: .alert)
+        locationManager.requestAlwaysAuthorization()
+        
+        if (uD.value(forKey: "chosenLocation") != nil) {
+            FetchValue.fv.value = uD.value(forKey: "chosenLocation") as! String
+        }
+        
+        alert = UIAlertController(title: "Not a valid location!", message: nil, preferredStyle: .alert)
         alert?.addAction(UIAlertAction(title: "Close", style: .cancel, handler: nil))
     }
     
@@ -29,7 +37,24 @@ class CurrenWeatherViewController: UIViewController {
         if (FetchValue.fv.value != "" && FetchValue.fv.value != "Use GPS") {
             fetchURLString(url: "https://api.openweathermap.org/data/2.5/weather?q=\(FetchValue.fv.value!)&units=metric&APPID=ce256b0381ade0625a3342e8094801f8")
         } else if (FetchValue.fv.value == "Use GPS") {
-            // TODO: USE GPS TO FETCH WEATHER DATA
+            if (CLLocationManager.locationServicesEnabled()) {
+                locationManager.delegate = self
+                locationManager.desiredAccuracy = kCLLocationAccuracyBest
+                locationManager.startUpdatingLocation()
+            }
+            
+            let lat = Int((locationManager.location?.coordinate.latitude)!)
+            let lon = Int((locationManager.location?.coordinate.longitude)!)
+            
+            CLGeocoder().reverseGeocodeLocation(locationManager.location!, completionHandler: { (placemarks, error) in
+                if error == nil {
+                    self.cityLabel.text = placemarks?[0].locality
+                } else {
+                    self.present(self.self.alert!, animated: true)
+                }
+            })
+            
+            fetchURLString(url: "https://api.openweathermap.org/data/2.5/weather?lat=\(lat)&lon=\(lon)&units=metric&APPID=ce256b0381ade0625a3342e8094801f8")
         }
     }
     
@@ -42,7 +67,7 @@ class CurrenWeatherViewController: UIViewController {
         
         // Handles errors within datatask
         let task = session.dataTask(with: url) { (data, res, err) in
-            if let data = data,  let res = res as? HTTPURLResponse,
+            if let data = data, let res = res as? HTTPURLResponse,
                 res.statusCode == 200 {
                 DispatchQueue.main.async {
                     self.doneFetching(data: data, response: res, error: err)
