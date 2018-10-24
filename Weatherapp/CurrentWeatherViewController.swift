@@ -15,46 +15,59 @@ class CurrenWeatherViewController: UIViewController, CLLocationManagerDelegate {
     @IBOutlet weak var tempLabel: UILabel!
     @IBOutlet weak var cityLabel: UILabel!
     
-    let locationManager = CLLocationManager()
+    var locationManager : CLLocationManager!
     let uD = UserDefaults.standard
+    
+    var previousSearch : String! = ""
     
     var alert : UIAlertController? = nil
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        locationManager = CLLocationManager()
+        locationManager.delegate = self
+        locationManager.desiredAccuracy = kCLLocationAccuracyBest
         locationManager.requestAlwaysAuthorization()
         
         if (uD.value(forKey: "chosenLocation") != nil) {
-            FetchValue.fv.value = uD.value(forKey: "chosenLocation") as! String
+            FetchValue.fv.value = uD.value(forKey: "chosenLocation") as? String
         }
         
-        alert = UIAlertController(title: "Not a valid location!", message: nil, preferredStyle: .alert)
+        alert = UIAlertController(title: "Chosen location is not a valid!", message: nil, preferredStyle: .alert)
         alert?.addAction(UIAlertAction(title: "Close", style: .cancel, handler: nil))
     }
     
     override func viewDidAppear(_ animated: Bool) {
-        if (FetchValue.fv.value != "" && FetchValue.fv.value != "Use GPS") {
-            fetchURLString(url: "https://api.openweathermap.org/data/2.5/weather?q=\(FetchValue.fv.value!)&units=metric&APPID=ce256b0381ade0625a3342e8094801f8")
-        } else if (FetchValue.fv.value == "Use GPS") {
-            if (CLLocationManager.locationServicesEnabled()) {
-                locationManager.delegate = self
-                locationManager.desiredAccuracy = kCLLocationAccuracyBest
-                locationManager.startUpdatingLocation()
-            }
+        print("Current " + " Prev: " + previousSearch + " FetchValue: " + FetchValue.fv.value!)
+        if (previousSearch != FetchValue.fv.value) {
+            previousSearch = FetchValue.fv.value
             
-            let lat = Int((locationManager.location?.coordinate.latitude)!)
-            let lon = Int((locationManager.location?.coordinate.longitude)!)
-            
-            CLGeocoder().reverseGeocodeLocation(locationManager.location!, completionHandler: { (placemarks, error) in
-                if error == nil {
-                    self.cityLabel.text = placemarks?[0].locality
-                } else {
-                    self.present(self.self.alert!, animated: true)
+            if (FetchValue.fv.value != "" && FetchValue.fv.value != "Use GPS") {
+                fetchURLString(url: "https://api.openweathermap.org/data/2.5/weather?q=\(FetchValue.fv.value!)&units=metric&APPID=ce256b0381ade0625a3342e8094801f8")
+            } else if ((FetchValue.fv.value).contains("GPS")) {
+                if (CLLocationManager.locationServicesEnabled()) {
+                    locationManager.startUpdatingLocation()
+                    
+                    let loc = locationManager.location
+                
+                    let lat = loc!.coordinate.latitude
+                    let lon = loc!.coordinate.longitude
+                    
+                    CLGeocoder().reverseGeocodeLocation(locationManager.location!, completionHandler: { (placemarks, error) in
+                        if error == nil {
+                            self.cityLabel.text = placemarks?[0].locality
+                            self.uD.set("Use GPS", forKey: "chosenLocation")
+                        } else {
+                            self.present(self.self.alert!, animated: true)
+                        }
+                    })
+                    
+                    locationManager.stopUpdatingLocation()
+                    
+                    fetchURLString(url: "https://api.openweathermap.org/data/2.5/weather?lat=\(lat)&lon=\(lon)&units=metric&APPID=ce256b0381ade0625a3342e8094801f8")
                 }
-            })
-            
-            fetchURLString(url: "https://api.openweathermap.org/data/2.5/weather?lat=\(lat)&lon=\(lon)&units=metric&APPID=ce256b0381ade0625a3342e8094801f8")
+            }
         }
     }
     
@@ -75,7 +88,6 @@ class CurrenWeatherViewController: UIViewController, CLLocationManagerDelegate {
             } else {
                 // Displays an alert if the location searched for isn't a valid name
                 self.present(self.self.alert!, animated: true)
-                print("Error fetching for \(FetchValue.fv.value)!")
             }
         }
         
@@ -91,7 +103,9 @@ class CurrenWeatherViewController: UIViewController, CLLocationManagerDelegate {
         
         // Execute stuff in UI thread
         DispatchQueue.main.async(execute: {() in
-            self.cityLabel.text = FetchValue.fv.value
+            if (!(FetchValue.fv.value).contains("GPS")) {
+                self.cityLabel.text = FetchValue.fv.value
+            }
             self.tempLabel.text = String(weatherObj.main.temp)
             self.tempLabel.text = self.tempLabel.text! + " C"
             self.fetchURLImage(url:

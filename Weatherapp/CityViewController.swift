@@ -94,10 +94,13 @@ class CityViewController: UIViewController, UITableViewDelegate, UITableViewData
         }
         
         if (uD.value(forKey: "chosenLocation") != nil) {
+            print(uD.value(forKey: "chosenLocation")!)
             tableView.selectRow(at: IndexPath(row: locationList.index(of: uD.value(forKey: "chosenLocation") as! String)!, section: 0), animated: true, scrollPosition: .top)
         } else {
             self.tableView.selectRow(at: IndexPath(row: 0, section: 0), animated: true, scrollPosition: .top)
         }
+        
+        FetchValue.fv.value = locationList[((tableView.indexPathForSelectedRow)?.row)!]
         
         alert = UIAlertController(title: "Add location", message: "", preferredStyle: .alert)
         alert?.addAction(UIAlertAction(title: "Cancel", style: .cancel))
@@ -111,7 +114,8 @@ class CityViewController: UIViewController, UITableViewDelegate, UITableViewData
                               tableView.setEditing(true, animated: true)
         
         if (!tableView.isEditing && didDeleteRow) {
-            tableView.selectRow(at: IndexPath(row: (locationList.count - 1 >= 0 ? locationList.count - 1 : 0), section: 0), animated: true, scrollPosition: .top)
+            tableView.selectRow(at: IndexPath(row: (locationList.count - 1 > 0 ?  locationList.count - 1 : 0), section: 0), animated: true, scrollPosition: .top)
+            FetchValue.fv.value = locationList[((tableView.indexPathForSelectedRow)?.row)!]
             didDeleteRow = false
         } else if (!tableView.isEditing) {
             tableView.selectRow(at: IndexPath(row: locationList.index(of: FetchValue.fv.value)!, section: 0), animated: true, scrollPosition: .top)
